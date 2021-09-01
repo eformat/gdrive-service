@@ -4,12 +4,15 @@ import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.GenericUrl;
 import com.google.api.client.http.HttpResponse;
 import com.google.api.services.drive.Drive;
+import com.google.api.services.drive.model.ChildList;
 import com.google.api.services.drive.model.File;
 import org.apache.camel.CamelContext;
 import org.apache.camel.CamelExecutionException;
 import org.apache.camel.ProducerTemplate;
 import org.apache.camel.component.google.drive.GoogleDriveComponent;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 import javax.ws.rs.*;
@@ -19,8 +22,10 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 
-@Path("/gdrive")
-public class DownloadFile {
+@Path("gdrive")
+public class Downloader {
+
+    private final Logger log = LoggerFactory.getLogger(Downloader.class);
 
     @ConfigProperty(name = "download.folder", defaultValue = "/tmp")
     String downloadFolder;
@@ -33,10 +38,11 @@ public class DownloadFile {
         return component.getClient(component.getConfiguration());
     }
 
-    @Path("/export")
+    @Path("exportFile")
     @GET
     @Produces(MediaType.TEXT_PLAIN)
-    public Response readFile(@QueryParam("fileId") String fileId, @QueryParam("mimeType") @DefaultValue("application/vnd.openxmlformats-officedocument.wordprocessingml.document") String mimeType) {
+    public Response exportFile(@QueryParam("fileId") String fileId, @QueryParam("mimeType") @DefaultValue("application/vnd.openxmlformats-officedocument.wordprocessingml.document") String mimeType) {
+        log.info(">>> exportFile: " + fileId);
         try {
             File response = producerTemplate.requestBody("google-drive://drive-files/get?inBody=fileId", fileId, File.class);
             String ext = null;
@@ -65,6 +71,52 @@ public class DownloadFile {
             }
             return Response.status(Response.Status.NOT_FOUND).build();
 
+        } catch (CamelExecutionException e) {
+            Exception exchangeException = e.getExchange().getException();
+            if (exchangeException != null && exchangeException.getCause() instanceof GoogleJsonResponseException) {
+                GoogleJsonResponseException originalException = (GoogleJsonResponseException) exchangeException.getCause();
+                return Response.status(originalException.getStatusCode()).build();
+            }
+            throw e;
+        }
+    }
+
+    @Path("folderList")
+    @GET
+    @Produces(MediaType.TEXT_PLAIN)
+    public Response readFolder(@QueryParam("folderId") String folderId) {
+        try {
+            ChildList response = producerTemplate.requestBody("google-drive://drive-children/list?inBody=folderId", folderId, ChildList.class);
+            if (response != null) {
+                return Response.ok(response.getItems().toString()).build();
+            } else {
+                return Response.status(Response.Status.NOT_FOUND).build();
+            }
+        } catch (CamelExecutionException e) {
+            Exception exchangeException = e.getExchange().getException();
+            if (exchangeException != null && exchangeException.getCause() instanceof GoogleJsonResponseException) {
+                GoogleJsonResponseException originalException = (GoogleJsonResponseException) exchangeException.getCause();
+                return Response.status(originalException.getStatusCode()).build();
+            }
+            throw e;
+        }
+    }
+
+    @Path("exportFolder")
+    @GET
+    @Produces(MediaType.TEXT_PLAIN)
+    public Response exportFolder(@QueryParam("folderId") String folderId) {
+        log.info(">>> exportFolder: " + folderId);
+        try {
+            ChildList response = producerTemplate.requestBody("google-drive://drive-children/list?inBody=folderId", folderId, ChildList.class);
+            if (response != null) {
+                response.getItems().forEach(
+                        child -> exportFile(child.getId(), "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+                );
+                return Response.ok("Exported " + response.getItems().size() + " documents OK").build();
+            } else {
+                return Response.status(Response.Status.NOT_FOUND).build();
+            }
         } catch (CamelExecutionException e) {
             Exception exchangeException = e.getExchange().getException();
             if (exchangeException != null && exchangeException.getCause() instanceof GoogleJsonResponseException) {
