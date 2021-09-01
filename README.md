@@ -15,8 +15,10 @@ See [OAuth Playground](https://developers.google.com/oauthplayground/) for help 
 
 Test
 ```bash
-# docx format (default)
-curl -vvv localhost:8080/gdrive/export?fileId=1WIDbZg7VN8N97P_0hU5JD89ESYZKpZoMR3tNhOaeHrc
-# pdf format
-curl -vvv localhost:8080/gdrive/export?fileId=1WIDbZg7VN8N97P_0hU5JD89ESYZKpZoMR3tNhOaeHrc&mimeType=application/pdf
+# exportFile docx format (default)
+curl -vvv http://localhost:8080/gdrive/exportFile?fileId=1WIDbZg7VN8N97P_0hU5JD89ESYZKpZoMR3tNhOaeHrc
+# exportFile pdf format
+curl -vvv http://localhost:8080/gdrive/exportFile?fileId=1WIDbZg7VN8N97P_0hU5JD89ESYZKpZoMR3tNhOaeHrc&mimeType=application/pdf
+# export and entire folder of docs
+curl -vvv "http://localhost:8080/gdrive/exportFolder?folderId=1myiHJY7U5WDpAzDl7xohs8tf2Yps1FIi"
 ```
