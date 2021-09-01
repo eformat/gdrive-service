@@ -22,7 +22,7 @@ import java.io.OutputStream;
 @Path("/gdrive")
 public class DownloadFile {
 
-    @ConfigProperty(name = "donwload.folder", defaultValue = "/tmp")
+    @ConfigProperty(name = "download.folder", defaultValue = "/tmp")
     String downloadFolder;
 
     @Inject
